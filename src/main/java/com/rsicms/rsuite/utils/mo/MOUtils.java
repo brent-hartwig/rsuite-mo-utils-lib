@@ -18,7 +18,9 @@ import javax.xml.transform.TransformerException;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.Node;
 import org.xml.sax.SAXException;
 
 import com.reallysi.rsuite.api.ContentAssemblyItem;
@@ -31,6 +33,7 @@ import com.reallysi.rsuite.api.User;
 import com.reallysi.rsuite.api.VersionHistory;
 import com.reallysi.rsuite.api.VersionSpecifier;
 import com.reallysi.rsuite.api.VersionType;
+import com.reallysi.rsuite.api.browse.BrowseInfo;
 import com.reallysi.rsuite.api.control.ManagedObjectAdvisor;
 import com.reallysi.rsuite.api.control.NonXmlObjectSource;
 import com.reallysi.rsuite.api.control.ObjectCheckInOptions;
@@ -39,6 +42,7 @@ import com.reallysi.rsuite.api.control.ObjectSource;
 import com.reallysi.rsuite.api.control.ObjectUpdateOptions;
 import com.reallysi.rsuite.api.control.XmlObjectSource;
 import com.reallysi.rsuite.api.extensions.ExecutionContext;
+import com.reallysi.rsuite.api.xml.XPathEvaluator;
 import com.reallysi.rsuite.service.ManagedObjectService;
 import com.rsicms.rsuite.utils.xml.DomUtils;
 import com.rsicms.rsuite.utils.xml.TransformUtils;
@@ -247,14 +251,13 @@ public class MOUtils {
   /**
    * Get the update options for the given object source and name.
    * 
-   * @param context
    * @param objectSource
    * @param objectName
    * @param advisor
    * @return The update options for either an existing XML MO or non-XML MO.
    */
-  public static ObjectUpdateOptions getObjectUpdateOptions(ExecutionContext context,
-      ObjectSource objectSource, String objectName, ManagedObjectAdvisor advisor) {
+  public static ObjectUpdateOptions getObjectUpdateOptions(ObjectSource objectSource,
+      String objectName, ManagedObjectAdvisor advisor) {
     ObjectUpdateOptions options = new ObjectUpdateOptions();
     options.setExternalFileName(objectName);
     options.setDisplayName(objectName);
@@ -266,7 +269,7 @@ public class MOUtils {
   /**
    * Determine if an MO, and optionally, its sub-MOs, are checked out.
    * 
-   * @param context
+   * @param moService
    * @param user
    * @param id
    * @param includeSubMos Submit true to check the MO's sub-MOs.
@@ -274,9 +277,8 @@ public class MOUtils {
    *         sub MO is checked out.
    * @throws RSuiteException
    */
-  public static boolean isCheckedOut(ExecutionContext context, User user, String id,
+  public static boolean isCheckedOut(ManagedObjectService moService, User user, String id,
       boolean includeSubMos) throws RSuiteException {
-    ManagedObjectService moService = context.getManagedObjectService();
     if (moService.isCheckedOut(user, id)) {
       return true;
     }
@@ -486,20 +488,10 @@ public class MOUtils {
           includeStandardRSuiteXslParams, baseRSuiteUrl);
 
       // Update the MO
-      ObjectSource objectSource = getObjectSource(context, "file.xml", // Only
-                                                                       // the
-                                                                       // file
-                                                                       // extension
-                                                                       // matters
-                                                                       // here.
-          transformResult, resultEncoding);
+      ObjectSource objectSource =
+          getObjectSource(context, "file.xml", transformResult, resultEncoding);
       moService.update(user, mo.getId(), objectSource,
-          getObjectUpdateOptions(context, objectSource, "bogus object name", // not
-                                                                             // important
-                                                                             // for
-                                                                             // XML
-                                                                             // MOs.
-              null)); // local MO advisor
+          getObjectUpdateOptions(objectSource, StringUtils.EMPTY, null));
 
       // Check in the MO
       ObjectCheckInOptions checkInOptions = new ObjectCheckInOptions();
@@ -530,5 +522,189 @@ public class MOUtils {
   public static boolean isSubMo(ManagedObjectService moService, User user, ManagedObject mo)
       throws RSuiteException {
     return !mo.getId().equals(moService.getRootManagedObjectId(user, mo.getId()));
+  }
+
+  /**
+   * Find out if the MO is not a sub-MO.
+   * 
+   * @param moService
+   * @param user
+   * @param mo
+   * @return True if not a sub-MO; else false.
+   * @throws RSuiteException
+   */
+  public static boolean isNotSubMo(ManagedObjectService moService, User user, ManagedObject mo)
+      throws RSuiteException {
+    return !isSubMo(moService, user, mo);
+  }
+
+  /**
+   * Throw an exception if the MO is a sub-MO.
+   * 
+   * @param moService
+   * @param user
+   * @param mo
+   * @throws RSuiteException
+   */
+  public static void throwIfSubMo(ManagedObjectService moService, User user, ManagedObject mo)
+      throws RSuiteException {
+    if (isSubMo(moService, user, mo)) {
+      throw new RSuiteException(RSuiteException.ERROR_PARAM_INVALID,
+          new StringBuilder("'").append(getDisplayNameQuietly(mo)).append("' (ID: ")
+              .append(mo.getId()).append(") is a sub-MO.").toString());
+    }
+  }
+
+  /**
+   * Throw an exception if the MO is not a sub-MO.
+   * 
+   * @param moService
+   * @param user
+   * @param mo
+   * @throws RSuiteException
+   */
+  public static void throwIfNotSubMo(ManagedObjectService moService, User user, ManagedObject mo)
+      throws RSuiteException {
+    if (isNotSubMo(moService, user, mo)) {
+      throw new RSuiteException(RSuiteException.ERROR_PARAM_INVALID,
+          new StringBuilder("'").append(getDisplayNameQuietly(mo)).append("' (ID: ")
+              .append(mo.getId()).append(") is not a sub-MO.").toString());
+    }
+  }
+
+  /**
+   * Get one of the given sub-MO's siblings --either the preceding or following based on value of of
+   * the "preceding" parameter.
+   * 
+   * @param moService
+   * @param user
+   * @param mo Sub-MO to get a sibling of.
+   * @param preceding Submit true for the MO's preceding sub-MO or false for its following sub-MO.
+   * @return A sibling sub-MO or, when one doesn't exist, null.
+   * @throws RSuiteException Thrown if the given MO is not a sub-MO.
+   */
+  public static ManagedObject getSiblingSubMo(ManagedObjectService moService, User user,
+      ManagedObject mo, boolean preceding) throws RSuiteException {
+    throwIfNotSubMo(moService, user, mo);
+    int increment = 20;
+    int start = 0;
+    int end = start + increment;
+    BrowseInfo browseInfo = moService.getChildManagedObjects(user,
+        moService.getRootManagedObjectId(user, mo.getId()), start, end);
+    List<ManagedObject> moList;
+    ManagedObject previousMo = null;
+    boolean returnNext = false;
+    while (browseInfo.getTotal() > 0) {
+      moList = browseInfo.getManagedObjects();
+      for (ManagedObject candidateMo : moList) {
+        if (returnNext) {
+          return candidateMo;
+        }
+        if (candidateMo.getId().equals(mo.getId())) {
+          if (preceding) {
+            return previousMo;
+          } else {
+            returnNext = true;
+          }
+        }
+        previousMo = candidateMo;
+      }
+
+      // Get another batch.
+      start += increment;
+      end += increment;
+      browseInfo = moService.getChildManagedObjects(user,
+          moService.getRootManagedObjectId(user, mo.getId()), start, end);
+    }
+    return null;
+  }
+
+  /**
+   * Get the sub-MO immediately preceding the provided one.
+   * 
+   * @param moService
+   * @param user
+   * @param mo
+   * @return The sub-MO preceding the given one, or null when there isn't one.
+   * @throws RSuiteException Thrown when not given a sub-MO.
+   */
+  public static ManagedObject getPrecedingSubMo(ManagedObjectService moService, User user,
+      ManagedObject mo) throws RSuiteException {
+    return getSiblingSubMo(moService, user, mo, true);
+  }
+
+  /**
+   * Get the sub-MO immediately following the provided one.
+   * 
+   * @param moService
+   * @param user
+   * @param mo
+   * @return The sub-MO following the given one, or null when there isn't one.
+   * @throws RSuiteException Thrown when not given a sub-MO.
+   */
+  public static ManagedObject getFollowingSubMo(ManagedObjectService moService, User user,
+      ManagedObject mo) throws RSuiteException {
+    return getSiblingSubMo(moService, user, mo, false);
+  }
+
+  /**
+   * Add elements into an ancestor MO before or after the specified location.
+   * 
+   * @param moService
+   * @param user
+   * @param ancestorMoId The ID of the MO to add the new nodes within.
+   * @param adjacentNodeXPath An XPath expression identifying an existing descendant node within the
+   *        ancestor that the new nodes are to be added before or after. An exception will be thrown
+   *        if this doesn't identify a node within the ancestor.
+   * @param insertBefore Submit true to add new nodes before the node identified by
+   *        adjacentNodeXPath; else, submit false to inserted after it.
+   * @param eval The XPath evaluator to use within the ancestor MO.
+   * @param newNodes The new nodes to add within the ancestor.
+   * @throws RSuiteException
+   */
+  public static void addNodesIntoExistingMo(ManagedObjectService moService, User user,
+      String ancestorMoId, String adjacentNodeXPath, boolean insertBefore, XPathEvaluator eval,
+      List<Node> newNodes) throws RSuiteException {
+    if (newNodes != null && newNodes.size() > 0) {
+      // Require the ancestor MO be checked out by the requesting user.
+      if (!isCheckedOut(moService, user, ancestorMoId, false)) {
+        throw new RSuiteException(RSuiteException.ERROR_OBJECT_NOT_CHECKED_OUT,
+            "Check out the MO before attempting to insert content within.");
+      }
+
+      // Obtain the node to insert before or within.
+      ManagedObject ancestorMo = moService.getManagedObject(user, ancestorMoId);
+      Element ancestorElem = ancestorMo.getElement();
+      Node adjacentNode = eval.executeXPathToNode(adjacentNodeXPath, ancestorElem);
+      if (adjacentNode == null) {
+        throw new RSuiteException(RSuiteException.ERROR_OBJECT_NOT_FOUND,
+            "'" + adjacentNodeXPath + "' does not identify a node within '"
+                + getDisplayNameQuietly(ancestorMo) + "' (ID: " + ancestorMo.getId() + ").");
+      }
+      if (!insertBefore) {
+        if (adjacentNode.getNextSibling() != null) {
+          adjacentNode = adjacentNode.getNextSibling();
+        } else {
+          adjacentNode = null;
+        }
+      }
+
+      // Insert the new nodes.
+      Node parentNode = adjacentNode.getParentNode();
+      Document doc = parentNode.getOwnerDocument();
+      for (Node node : newNodes) {
+        doc.adoptNode(node);
+        if (adjacentNode == null) {
+          parentNode.appendChild(node);
+        } else {
+          parentNode.insertBefore(node, adjacentNode);
+        }
+      }
+
+      // Update the ancestor in RSuite
+      ObjectSource objectSource = new XmlObjectSource(ancestorElem);
+      moService.update(user, ancestorMoId, objectSource,
+          getObjectUpdateOptions(objectSource, StringUtils.EMPTY, null));
+    }
   }
 }
