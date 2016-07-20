@@ -23,6 +23,9 @@ dependencies {
 	compile ('rsuite-community:rsuite-xml-utils-lib:0.0.1') {
 		transitive=false
 	}
+	compile ('apache:commons-logging:1.1.1') {
+		transitive=false
+	}
 	compile ('apache:commons-fileupload:1.2.1') {
 		transitive=false
 	}

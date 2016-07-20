@@ -13,11 +13,13 @@ import java.util.List;
 import java.util.Map;
 
 import javax.xml.namespace.QName;
+import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerException;
 
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.logging.Log;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -53,9 +55,20 @@ import com.rsicms.rsuite.utils.xml.TransformUtils;
 public class MOUtils {
 
   /**
+   * @deprecated Instead, please use
+   *             {@link #getInputStream(Transformer, ManagedObject, boolean, boolean, String)}.
+   */
+  public static InputStream getInputStream(ExecutionContext context, ManagedObject mo,
+      boolean includeXMLDeclaration, boolean includeDoctypeDeclaration, String encoding)
+      throws RSuiteException, UnsupportedEncodingException, TransformerException {
+    return getInputStream(context.getXmlApiManager().getTransformer((File) null), mo,
+        includeXMLDeclaration, includeDoctypeDeclaration, encoding);
+  }
+
+  /**
    * Get the input stream of an MO, exposing options RSuite's ManagedObjectService does not.
    * 
-   * @param context
+   * @param transformer
    * @param mo
    * @param includeXMLDeclaration
    * @param includeDoctypeDeclaration
@@ -65,13 +78,74 @@ public class MOUtils {
    * @throws UnsupportedEncodingException
    * @throws TransformerException
    */
-  public static InputStream getInputStream(ExecutionContext context, ManagedObject mo,
+  public static InputStream getInputStream(Transformer transformer, ManagedObject mo,
       boolean includeXMLDeclaration, boolean includeDoctypeDeclaration, String encoding)
       throws RSuiteException, UnsupportedEncodingException, TransformerException {
     Element elem = mo.getElement();
-    String str = DomUtils.serializeToString(context, elem, includeXMLDeclaration,
+    String str = DomUtils.serializeToString(transformer, elem, includeXMLDeclaration,
         includeDoctypeDeclaration, encoding);
     return new ByteArrayInputStream(str.getBytes(encoding));
+  }
+
+  /**
+   * Work over the XML declaration, doctype declaration and encoding of the MO.
+   * 
+   * @param moService
+   * @param user
+   * @param id
+   * @param transformer
+   * @param includeXMLDeclaration
+   * @param includeDoctypeDeclaration
+   * @param encoding
+   * @return MO's Element after manipulating he XML declaration, doctype declaration and encoding as
+   *         prescribed by the parameters.
+   * @throws RSuiteException
+   * @throws TransformerException
+   */
+  public static Element getElement(ManagedObjectService moService, User user, String id,
+      Transformer transformer, boolean includeXMLDeclaration, boolean includeDoctypeDeclaration,
+      String encoding) throws RSuiteException, TransformerException {
+    return getElement(moService.getManagedObject(user, id).getElement(), transformer,
+        includeXMLDeclaration, includeDoctypeDeclaration, encoding);
+  }
+
+  /**
+   * Work over the XML declaration, doctype declaration and encoding of the MO.
+   * 
+   * @param mo
+   * @param transformer
+   * @param includeXMLDeclaration
+   * @param includeDoctypeDeclaration
+   * @param encoding
+   * @return MO's Element after manipulating he XML declaration, doctype declaration and encoding as
+   *         prescribed by the parameters.
+   * @throws RSuiteException
+   * @throws TransformerException
+   */
+  public static Element getElement(ManagedObject mo, Transformer transformer,
+      boolean includeXMLDeclaration, boolean includeDoctypeDeclaration, String encoding)
+      throws RSuiteException, TransformerException {
+    return getElement(mo.getElement(), transformer, includeXMLDeclaration,
+        includeDoctypeDeclaration, encoding);
+  }
+
+  /**
+   * Work over the XML declaration, doctype declaration and encoding of the Element.
+   * 
+   * @param elem
+   * @param transformer
+   * @param includeXMLDeclaration
+   * @param includeDoctypeDeclaration
+   * @param encoding
+   * @return A potentially adjusted version of the provided Element, after applying the parameters.
+   * @throws RSuiteException
+   * @throws TransformerException
+   */
+  public static Element getElement(Element elem, Transformer transformer,
+      boolean includeXMLDeclaration, boolean includeDoctypeDeclaration, String encoding)
+      throws RSuiteException, TransformerException {
+    return DomUtils.getElement(transformer, elem, includeXMLDeclaration, includeDoctypeDeclaration,
+        encoding);
   }
 
   /**
@@ -660,11 +734,19 @@ public class MOUtils {
    *        adjacentNodeXPath; else, submit false to inserted after it.
    * @param eval The XPath evaluator to use within the ancestor MO.
    * @param newNodes The new nodes to add within the ancestor.
+   * @param stripDoctype When true, the doctype information is removed from the ancestor before it
+   *        is updated in RSuite. May sound crazy, but there's a project that needs this; it has a
+   *        transformation that has to control this.
+   * @param trans Only used with stripDoctype is true.
+   * @param log
    * @throws RSuiteException
+   * @throws TransformerException
    */
   public static void addNodesIntoExistingMo(ManagedObjectService moService, User user,
       String ancestorMoId, String adjacentNodeXPath, boolean insertBefore, XPathEvaluator eval,
-      List<Node> newNodes) throws RSuiteException {
+      List<Node> newNodes, boolean stripDoctype, Transformer trans, Log log)
+      throws RSuiteException, TransformerException {
+
     if (newNodes != null && newNodes.size() > 0) {
       // Require the ancestor MO be checked out by the requesting user.
       if (!isCheckedOut(moService, user, ancestorMoId, false)) {
@@ -675,17 +757,23 @@ public class MOUtils {
       // Obtain the node to insert before or within.
       ManagedObject ancestorMo = moService.getManagedObject(user, ancestorMoId);
       Element ancestorElem = ancestorMo.getElement();
+      if (stripDoctype) {
+        ancestorElem = getElement(ancestorElem, trans, false, false, "UTF-8");
+      }
       Node adjacentNode = eval.executeXPathToNode(adjacentNodeXPath, ancestorElem);
       if (adjacentNode == null) {
         throw new RSuiteException(RSuiteException.ERROR_OBJECT_NOT_FOUND,
             "'" + adjacentNodeXPath + "' does not identify a node within '"
                 + getDisplayNameQuietly(ancestorMo) + "' (ID: " + ancestorMo.getId() + ").");
       }
+      // Adjust when asked to insert after.
+      boolean appendToParent = false;
       if (!insertBefore) {
+        // Insert before next sibling, when there is one.
         if (adjacentNode.getNextSibling() != null) {
           adjacentNode = adjacentNode.getNextSibling();
         } else {
-          adjacentNode = null;
+          appendToParent = true;
         }
       }
 
@@ -694,11 +782,15 @@ public class MOUtils {
       Document doc = parentNode.getOwnerDocument();
       for (Node node : newNodes) {
         doc.adoptNode(node);
-        if (adjacentNode == null) {
+        if (appendToParent) {
           parentNode.appendChild(node);
         } else {
           parentNode.insertBefore(node, adjacentNode);
         }
+      }
+
+      if (log.isDebugEnabled()) {
+        log.debug("MOUtils.addNodesIntoExistingMo():\n" + DomUtils.serializeToString(ancestorElem));
       }
 
       // Update the ancestor in RSuite
