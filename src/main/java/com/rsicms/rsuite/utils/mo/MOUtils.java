@@ -19,7 +19,6 @@ import javax.xml.transform.TransformerException;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.logging.Log;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -738,13 +737,12 @@ public class MOUtils {
    *        is updated in RSuite. May sound crazy, but there's a project that needs this; it has a
    *        transformation that has to control this.
    * @param trans Only used with stripDoctype is true.
-   * @param log
    * @throws RSuiteException
    * @throws TransformerException
    */
   public static void addNodesIntoExistingMo(ManagedObjectService moService, User user,
       String ancestorMoId, String adjacentNodeXPath, boolean insertBefore, XPathEvaluator eval,
-      List<Node> newNodes, boolean stripDoctype, Transformer trans, Log log)
+      List<Node> newNodes, boolean stripDoctype, Transformer trans)
       throws RSuiteException, TransformerException {
 
     if (newNodes != null && newNodes.size() > 0) {
@@ -787,10 +785,6 @@ public class MOUtils {
         } else {
           parentNode.insertBefore(node, adjacentNode);
         }
-      }
-
-      if (log.isDebugEnabled()) {
-        log.debug("MOUtils.addNodesIntoExistingMo():\n" + DomUtils.serializeToString(ancestorElem));
       }
 
       // Update the ancestor in RSuite
