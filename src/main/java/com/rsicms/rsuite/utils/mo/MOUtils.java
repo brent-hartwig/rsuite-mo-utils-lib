@@ -49,7 +49,7 @@ import com.rsicms.rsuite.utils.xml.DomUtils;
 import com.rsicms.rsuite.utils.xml.TransformUtils;
 
 /**
- * A collection of static MO utility methods.
+ * A collection of MO utility methods.
  */
 public class MOUtils {
 
@@ -57,7 +57,7 @@ public class MOUtils {
    * @deprecated Instead, please use
    *             {@link #getInputStream(Transformer, ManagedObject, boolean, boolean, String)}.
    */
-  public static InputStream getInputStream(ExecutionContext context, ManagedObject mo,
+  public InputStream getInputStream(ExecutionContext context, ManagedObject mo,
       boolean includeXMLDeclaration, boolean includeDoctypeDeclaration, String encoding)
       throws RSuiteException, UnsupportedEncodingException, TransformerException {
     return getInputStream(context.getXmlApiManager().getTransformer((File) null), mo,
@@ -77,7 +77,7 @@ public class MOUtils {
    * @throws UnsupportedEncodingException
    * @throws TransformerException
    */
-  public static InputStream getInputStream(Transformer transformer, ManagedObject mo,
+  public InputStream getInputStream(Transformer transformer, ManagedObject mo,
       boolean includeXMLDeclaration, boolean includeDoctypeDeclaration, String encoding)
       throws RSuiteException, UnsupportedEncodingException, TransformerException {
     Element elem = mo.getElement();
@@ -101,7 +101,7 @@ public class MOUtils {
    * @throws RSuiteException
    * @throws TransformerException
    */
-  public static Element getElement(ManagedObjectService moService, User user, String id,
+  public Element getElement(ManagedObjectService moService, User user, String id,
       Transformer transformer, boolean includeXMLDeclaration, boolean includeDoctypeDeclaration,
       String encoding) throws RSuiteException, TransformerException {
     return getElement(moService.getManagedObject(user, id).getElement(), transformer,
@@ -121,7 +121,7 @@ public class MOUtils {
    * @throws RSuiteException
    * @throws TransformerException
    */
-  public static Element getElement(ManagedObject mo, Transformer transformer,
+  public Element getElement(ManagedObject mo, Transformer transformer,
       boolean includeXMLDeclaration, boolean includeDoctypeDeclaration, String encoding)
       throws RSuiteException, TransformerException {
     return getElement(mo.getElement(), transformer, includeXMLDeclaration,
@@ -140,8 +140,8 @@ public class MOUtils {
    * @throws RSuiteException
    * @throws TransformerException
    */
-  public static Element getElement(Element elem, Transformer transformer,
-      boolean includeXMLDeclaration, boolean includeDoctypeDeclaration, String encoding)
+  public Element getElement(Element elem, Transformer transformer, boolean includeXMLDeclaration,
+      boolean includeDoctypeDeclaration, String encoding)
       throws RSuiteException, TransformerException {
     return DomUtils.getElement(transformer, elem, includeXMLDeclaration, includeDoctypeDeclaration,
         encoding);
@@ -154,7 +154,7 @@ public class MOUtils {
    * @return a display name for the MO.
    * @throws RSuiteException
    */
-  public static String getDisplayName(ManagedObject mo) throws RSuiteException {
+  public String getDisplayName(ManagedObject mo) throws RSuiteException {
     return StringUtils.isBlank(mo.getDisplayName()) ? mo.getLocalName() : mo.getDisplayName();
   }
 
@@ -165,7 +165,7 @@ public class MOUtils {
    * @return the qualified element name.
    * @throws RSuiteException Thrown if unable to determine the given MO's qualified element name.
    */
-  public static String getQualifiedElementName(ManagedObject mo) throws RSuiteException {
+  public String getQualifiedElementName(ManagedObject mo) throws RSuiteException {
     StringBuilder sb = new StringBuilder();
     if (StringUtils.isNotBlank(mo.getNamespaceURI())) {
       sb.append(mo.getNamespaceURI()).append(":");
@@ -179,7 +179,7 @@ public class MOUtils {
    * @param mo
    * @return a display name for the MO, or an empty string if an exception is encountered.
    */
-  public static String getDisplayNameQuietly(ManagedObject mo) {
+  public String getDisplayNameQuietly(ManagedObject mo) {
     try {
       return getDisplayName(mo);
     } catch (Exception e) {
@@ -197,7 +197,7 @@ public class MOUtils {
    *         assembly reference, or CANode.
    * @throws RSuiteException
    */
-  public static ManagedObject getManagedObject(ExecutionContext context, User user,
+  public ManagedObject getManagedObject(ExecutionContext context, User user,
       ContentAssemblyItem caItem) throws RSuiteException {
     ManagedObject mo = null;
     if (caItem instanceof ManagedObject) {
@@ -219,8 +219,8 @@ public class MOUtils {
    * @return Either an instance of <code>XmlObjectSource</code> or <code>NonXmlObjectSource</code>.
    * @throws IOException Thrown if unable to get bytes from given file.
    */
-  public static ObjectSource getObjectSource(ExecutionContext context, String filename,
-      File content, String encoding) throws IOException {
+  public ObjectSource getObjectSource(ExecutionContext context, String filename, File content,
+      String encoding) throws IOException {
     FileInputStream fis = new FileInputStream(content);
     try {
       return getObjectSource(context, filename, fis, encoding);
@@ -239,7 +239,7 @@ public class MOUtils {
    * @return Either an instance of <code>XmlObjectSource</code> or <code>NonXmlObjectSource</code>.
    * @throws IOException Thrown if unable to get bytes from input stream.
    */
-  public static ObjectSource getObjectSource(ExecutionContext context, String filename,
+  public ObjectSource getObjectSource(ExecutionContext context, String filename,
       InputStream content, String encoding) throws IOException {
     return getObjectSource(context, filename, IOUtils.toByteArray(content), encoding);
   }
@@ -254,8 +254,8 @@ public class MOUtils {
    * @return Either an instance of <code>XmlObjectSource</code> or <code>NonXmlObjectSource</code>.
    * @throws IOException Thrown if unable to get bytes from given file.
    */
-  public static ObjectSource getObjectSource(ExecutionContext context, String filename,
-      String content, String encoding) throws IOException {
+  public ObjectSource getObjectSource(ExecutionContext context, String filename, String content,
+      String encoding) throws IOException {
     return getObjectSource(context, filename,
         IOUtils.toByteArray(new StringReader(content), encoding), encoding);
   }
@@ -270,8 +270,8 @@ public class MOUtils {
    * @return Either an instance of <code>XmlObjectSource</code> or <code>NonXmlObjectSource</code>.
    * @throws IOException Thrown if unable to get bytes from given file.
    */
-  public static ObjectSource getObjectSource(ExecutionContext context, String filename,
-      byte[] content, String encoding) throws IOException {
+  public ObjectSource getObjectSource(ExecutionContext context, String filename, byte[] content,
+      String encoding) throws IOException {
     if (context.getRSuiteServerConfiguration()
         .isTreatAsXmlFileExtension(FilenameUtils.getExtension(filename))) {
       return new XmlObjectSource(content, encoding);
@@ -289,7 +289,7 @@ public class MOUtils {
    * @param advisor A local MO advisor to use. May be null.
    * @return The insert options for either a new XML MO or non-XML MO.
    */
-  public static ObjectInsertOptions getObjectInsertOptions(ExecutionContext context,
+  public ObjectInsertOptions getObjectInsertOptions(ExecutionContext context,
       ObjectSource objectSource, String objectName, ManagedObjectAdvisor advisor) {
 
     // In 4.1.12 an additional constructor was added to ObjectInsertOptions
@@ -329,8 +329,8 @@ public class MOUtils {
    * @param advisor
    * @return The update options for either an existing XML MO or non-XML MO.
    */
-  public static ObjectUpdateOptions getObjectUpdateOptions(ObjectSource objectSource,
-      String objectName, ManagedObjectAdvisor advisor) {
+  public ObjectUpdateOptions getObjectUpdateOptions(ObjectSource objectSource, String objectName,
+      ManagedObjectAdvisor advisor) {
     ObjectUpdateOptions options = new ObjectUpdateOptions();
     options.setExternalFileName(objectName);
     options.setDisplayName(objectName);
@@ -350,7 +350,7 @@ public class MOUtils {
    *         sub MO is checked out.
    * @throws RSuiteException
    */
-  public static boolean isCheckedOut(ManagedObjectService moService, User user, String id,
+  public boolean isCheckedOut(ManagedObjectService moService, User user, String id,
       boolean includeSubMos) throws RSuiteException {
     if (moService.isCheckedOut(user, id)) {
       return true;
@@ -378,8 +378,7 @@ public class MOUtils {
    *         specified user.
    * @throws RSuiteException
    */
-  public static boolean checkout(ExecutionContext context, User user, String id)
-      throws RSuiteException {
+  public boolean checkout(ExecutionContext context, User user, String id) throws RSuiteException {
     ManagedObjectService moService = context.getManagedObjectService();
     if (!moService.isCheckedOut(user, id)) {
       moService.checkOut(user, id);
@@ -405,7 +404,7 @@ public class MOUtils {
    *         or null if there is only one version of the MO.
    * @throws RSuiteException
    */
-  public static VersionSpecifier getPreviousVersionSpecifier(ExecutionContext context, User user,
+  public VersionSpecifier getPreviousVersionSpecifier(ExecutionContext context, User user,
       String id) throws RSuiteException {
 
     VersionHistory vh = context.getManagedObjectService().getVersionHistory(user, id);
@@ -432,7 +431,7 @@ public class MOUtils {
    * @param metaDataItems
    * @throws RSuiteException
    */
-  public static void setMetadataEntries(User user, ManagedObjectService moService, String moid,
+  public void setMetadataEntries(User user, ManagedObjectService moService, String moid,
       List<MetaDataItem> metaDataItems) throws RSuiteException {
     moService.setMetaDataEntries(user, moid, metaDataItems);
   }
@@ -450,7 +449,7 @@ public class MOUtils {
    * @param lmdName
    * @throws RSuiteException
    */
-  public static void deleteMetadataEntries(User user, ManagedObjectService moService, String moid,
+  public void deleteMetadataEntries(User user, ManagedObjectService moService, String moid,
       String lmdName) throws RSuiteException {
     if (StringUtils.isNotBlank(moid) && StringUtils.isNotBlank(lmdName)) {
       ManagedObject mo = moService.getManagedObject(user, moid);
@@ -477,9 +476,8 @@ public class MOUtils {
    * @throws IOException
    * @throws RSuiteException
    */
-  public static ManagedObject load(ExecutionContext context, User user, String filename,
-      InputStream is, String encoding, ManagedObjectAdvisor moAdvisor)
-      throws IOException, RSuiteException {
+  public ManagedObject load(ExecutionContext context, User user, String filename, InputStream is,
+      String encoding, ManagedObjectAdvisor moAdvisor) throws IOException, RSuiteException {
     return load(context, user, filename, getObjectSource(context, filename, is, encoding),
         moAdvisor);
   }
@@ -495,7 +493,7 @@ public class MOUtils {
    * @return The <code>ManagedObject</code> loaded in RSuite.
    * @throws RSuiteException
    */
-  public static ManagedObject load(ExecutionContext context, User user, String filename,
+  public ManagedObject load(ExecutionContext context, User user, String filename,
       ObjectSource objectSource, ManagedObjectAdvisor moAdvisor) throws RSuiteException {
     return context.getManagedObjectService().load(user, objectSource,
         getObjectInsertOptions(context, objectSource, filename, moAdvisor));
@@ -509,7 +507,7 @@ public class MOUtils {
    * @return True if the MO is an XML MO with the specified QName.
    * @throws RSuiteException
    */
-  public static boolean hasMatchingQName(ManagedObject mo, QName qname) throws RSuiteException {
+  public boolean hasMatchingQName(ManagedObject mo, QName qname) throws RSuiteException {
     return (mo != null && !mo.isNonXml() && mo.getLocalName().equals(qname.getLocalPart()) && (
     // If both are blank, they're both in the default namespace
     (StringUtils.isBlank(mo.getNamespaceURI()) && StringUtils.isBlank(qname.getNamespaceURI()))
@@ -542,10 +540,9 @@ public class MOUtils {
    * @throws SAXException
    * @throws IOException
    */
-  public static void applyTransformAndUpdate(ExecutionContext context, Session session,
-      ManagedObject mo, URI xslUri, Map<String, Object> xslParams,
-      boolean includeStandardRSuiteXslParams, String baseRSuiteUrl, String resultEncoding,
-      String versionNote)
+  public void applyTransformAndUpdate(ExecutionContext context, Session session, ManagedObject mo,
+      URI xslUri, Map<String, Object> xslParams, boolean includeStandardRSuiteXslParams,
+      String baseRSuiteUrl, String resultEncoding, String versionNote)
       throws RSuiteException, URISyntaxException, TransformerException, SAXException, IOException {
     User user = session.getUser();
     ManagedObjectService moService = context.getManagedObjectService();
@@ -592,7 +589,7 @@ public class MOUtils {
    *         including non-XML MOs. Not sure about references.
    * @throws RSuiteException
    */
-  public static boolean isSubMo(ManagedObjectService moService, User user, ManagedObject mo)
+  public boolean isSubMo(ManagedObjectService moService, User user, ManagedObject mo)
       throws RSuiteException {
     return !mo.getId().equals(moService.getRootManagedObjectId(user, mo.getId()));
   }
@@ -606,7 +603,7 @@ public class MOUtils {
    * @return True if not a sub-MO; else false.
    * @throws RSuiteException
    */
-  public static boolean isNotSubMo(ManagedObjectService moService, User user, ManagedObject mo)
+  public boolean isNotSubMo(ManagedObjectService moService, User user, ManagedObject mo)
       throws RSuiteException {
     return !isSubMo(moService, user, mo);
   }
@@ -619,7 +616,7 @@ public class MOUtils {
    * @param mo
    * @throws RSuiteException
    */
-  public static void throwIfSubMo(ManagedObjectService moService, User user, ManagedObject mo)
+  public void throwIfSubMo(ManagedObjectService moService, User user, ManagedObject mo)
       throws RSuiteException {
     if (isSubMo(moService, user, mo)) {
       throw new RSuiteException(RSuiteException.ERROR_PARAM_INVALID,
@@ -636,7 +633,7 @@ public class MOUtils {
    * @param mo
    * @throws RSuiteException
    */
-  public static void throwIfNotSubMo(ManagedObjectService moService, User user, ManagedObject mo)
+  public void throwIfNotSubMo(ManagedObjectService moService, User user, ManagedObject mo)
       throws RSuiteException {
     if (isNotSubMo(moService, user, mo)) {
       throw new RSuiteException(RSuiteException.ERROR_PARAM_INVALID,
@@ -656,8 +653,8 @@ public class MOUtils {
    * @return A sibling sub-MO or, when one doesn't exist, null.
    * @throws RSuiteException Thrown if the given MO is not a sub-MO.
    */
-  public static ManagedObject getSiblingSubMo(ManagedObjectService moService, User user,
-      ManagedObject mo, boolean preceding) throws RSuiteException {
+  public ManagedObject getSiblingSubMo(ManagedObjectService moService, User user, ManagedObject mo,
+      boolean preceding) throws RSuiteException {
     throwIfNotSubMo(moService, user, mo);
     int increment = 20;
     int start = 0;
@@ -701,7 +698,7 @@ public class MOUtils {
    * @return The sub-MO preceding the given one, or null when there isn't one.
    * @throws RSuiteException Thrown when not given a sub-MO.
    */
-  public static ManagedObject getPrecedingSubMo(ManagedObjectService moService, User user,
+  public ManagedObject getPrecedingSubMo(ManagedObjectService moService, User user,
       ManagedObject mo) throws RSuiteException {
     return getSiblingSubMo(moService, user, mo, true);
   }
@@ -715,7 +712,7 @@ public class MOUtils {
    * @return The sub-MO following the given one, or null when there isn't one.
    * @throws RSuiteException Thrown when not given a sub-MO.
    */
-  public static ManagedObject getFollowingSubMo(ManagedObjectService moService, User user,
+  public ManagedObject getFollowingSubMo(ManagedObjectService moService, User user,
       ManagedObject mo) throws RSuiteException {
     return getSiblingSubMo(moService, user, mo, false);
   }
@@ -740,10 +737,9 @@ public class MOUtils {
    * @throws RSuiteException
    * @throws TransformerException
    */
-  public static void addNodesIntoExistingMo(ManagedObjectService moService, User user,
-      String ancestorMoId, String adjacentNodeXPath, boolean insertBefore, XPathEvaluator eval,
-      List<Node> newNodes, boolean stripDoctype, Transformer trans)
-      throws RSuiteException, TransformerException {
+  public void addNodesIntoExistingMo(ManagedObjectService moService, User user, String ancestorMoId,
+      String adjacentNodeXPath, boolean insertBefore, XPathEvaluator eval, List<Node> newNodes,
+      boolean stripDoctype, Transformer trans) throws RSuiteException, TransformerException {
 
     if (newNodes != null && newNodes.size() > 0) {
       // Require the ancestor MO be checked out by the requesting user.

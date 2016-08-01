@@ -12,14 +12,16 @@ import com.rsicms.rsuite.utils.mo.MOUtils;
 public class QNameManagedObjectQualifier implements ManagedObjectQualifier {
 
   private QName qname;
+  private MOUtils moUtils;
 
   public QNameManagedObjectQualifier(QName qname) {
     this.qname = qname;
+    this.moUtils = new MOUtils();
   }
 
   @Override
   public boolean accept(ManagedObject mo) throws RSuiteException {
-    return MOUtils.hasMatchingQName(mo, qname);
+    return moUtils.hasMatchingQName(mo, qname);
   }
 
 }
