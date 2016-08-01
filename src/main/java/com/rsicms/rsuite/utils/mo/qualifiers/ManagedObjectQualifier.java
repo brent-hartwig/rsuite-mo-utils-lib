@@ -8,14 +8,13 @@ import com.reallysi.rsuite.api.RSuiteException;
  */
 public interface ManagedObjectQualifier {
 
-	/**
-	 * Determine if the provided MO meets criteria defined by the qualifier
-	 * class.
-	 * 
-	 * @param mo
-	 * @return True if the MO is accepted by the qualifier.
-	 * @throws RSuiteException
-	 */
-	public boolean accept(ManagedObject mo) throws RSuiteException;
+  /**
+   * Determine if the provided MO meets criteria defined by the qualifier class.
+   * 
+   * @param mo
+   * @return True if the MO is accepted by the qualifier.
+   * @throws RSuiteException
+   */
+  public boolean accept(ManagedObject mo) throws RSuiteException;
 
 }
